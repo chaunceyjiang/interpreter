@@ -1,0 +1,13 @@
+.vscode/
+.idea/
+.pyc
+.js
+.html
+app/*
+tempCodeRunner*
+.vagrant/
+01/
+02/
+03/
+04/
+demo/
