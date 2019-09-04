@@ -9,7 +9,8 @@ import (
 func Eval(node ast.Node) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
-		return evalStatements(node.Statements)
+		return evalProgram(node)
+		//return evalStatements(node.Statements)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression)
 	case *ast.IntegerLiteral:
@@ -17,7 +18,8 @@ func Eval(node ast.Node) object.Object {
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.BlockStatement:
-		return evalStatements(node.Statements)
+		return evalBlockStatement(node)
+		//return evalStatements(node.Statements)
 	case *ast.PrefixExpression:
 		right := Eval(node.Right)
 		return evalPrefixExpression(node.Operator, right)
@@ -27,8 +29,24 @@ func Eval(node ast.Node) object.Object {
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.IfExpression:
 		return evalIfExpression(node)
+	case *ast.ReturnStatement:
+		// 如果是返回语句，则继续计算返回表达式
+		val := Eval(node.ReturnValue)
+		return &object.ReturnValue{Value: val}
 	}
 	return nil
+}
+
+func evalProgram(program *ast.Program) object.Object {
+	var result object.Object
+	for _, statemnt := range program.Statements {
+		result = Eval(statemnt)
+		// 如果 遇到return 语句 则，结束剩下语句的解析
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			return returnValue.Value
+		}
+	}
+	return result
 }
 
 func evalInfixExpression(operator string, left, right object.Object) object.Object {
@@ -47,7 +65,7 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 func evalIfExpression(ie *ast.IfExpression) object.Object {
 	condition := Eval(ie.Condition) // 先计算if 的条件
 	if isTruthy(condition) {
-		return Eval(ie.Condition)
+		return Eval(ie.Consequence)
 	} else if ie.Alternative != nil { // 如果有else 节点 则 计算else
 		return Eval(ie.Alternative)
 	} else {
@@ -129,6 +147,21 @@ func evalStatements(stmts []ast.Statement) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
 		result = Eval(statement)
+
+		if resultValue, ok := result.(*object.ReturnValue); ok {
+			return resultValue.Value
+		}
+	}
+	return result
+}
+func evalBlockStatement(block *ast.BlockStatement) object.Object {
+	var result object.Object
+	for _, statement := range block.Statements {
+		result = Eval(statement)
+		// 如果是返回值类型的对象，则返回具体类型，并且遇到return 语句则退出当前解析，不再计算剩下的表达式.
+		if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
+			return result
+		}
 	}
 	return result
 }
