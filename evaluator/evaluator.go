@@ -39,6 +39,7 @@ func Eval(node ast.Node, ctx *object.Context) object.Object {
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.IfExpression:
 		return evalIfExpression(node, ctx)
+
 	case *ast.ReturnStatement:
 		// 如果是返回语句，则继续计算返回表达式
 		val := Eval(node.ReturnValue, ctx)
@@ -46,19 +47,82 @@ func Eval(node ast.Node, ctx *object.Context) object.Object {
 			return val
 		}
 		return &object.ReturnValue{Value: val}
+
 	case *ast.LetStatement:
 		val := Eval(node.Value, ctx) // LetStatement 语句表达式存在 Value 中
 		if isError(val) {
 			return val
 		}
 		ctx.Set(node.Name.Value, val)
+
 	case *ast.Identifier:
-		return evalIdentifer(node, ctx)
+		return evalIdentifier(node, ctx)
+
+	case *ast.FunctionLiteral:
+		params := node.Parameters
+		body := node.Body
+		// 给每一个函数增加一个全局上下文环境，然后再给一个函数增加一个自有的函数栈，上下文环境是一个指针，因此，每个函数都能修改全局上下文
+		return &object.Function{Parameters: params, Body: body, Ctx: ctx}
+
+	case *ast.CallExpression:
+		function := Eval(node.Function, ctx) // 计算函数参数中的表达式
+		if isError(function) {
+			return function
+		}
+		args := evalExpressions(node.Arguments, ctx) // 计算每一个参数
+		if len(args) == 1 && isError(args[0]) {
+			// 如果只有一个参数 且是一个错误，则返回该错误
+			return args[0]
+		}
+		callFunction(function, args)
 	}
 	return nil
 }
 
-func evalIdentifer(node *ast.Identifier, ctx *object.Context) object.Object {
+func callFunction(fn object.Object, args []object.Object) object.Object {
+	function, ok := fn.(*object.Function)
+	if !ok {
+		return newError("not a function: %s", fn.Type())
+	}
+
+	fnCtx := callFunctionCtx(function, args)
+
+	// function.Body 是一个代码块
+	evaluated := Eval(function.Body, fnCtx) // 计算函数体，然后用自身的上下文环境
+	// 将一个ReturnValue 对象，转换成一个 Integer 或者 Boolean object
+	return unwarpReturnValue(evaluated)
+}
+
+func callFunctionCtx(fn *object.Function, args []object.Object) *object.Context {
+	// fn.ctx 将全局的上下文环境保留
+	ctx := object.NewFunctionStackContext(fn.Ctx)
+	for paramIdx, param := range fn.Parameters {
+		// param.Value 代表原始变量名，args[paramIdx] 代表该变量被计算的值
+		ctx.Set(param.Value, args[paramIdx])
+		// 加入到自身函数栈中
+	}
+	return ctx
+}
+func unwarpReturnValue(obj object.Object) object.Object {
+	if returnValue, ok := obj.(*object.ReturnValue); ok {
+		// 将ReturnValue 中的值取出来
+		return returnValue.Value
+	}
+	return obj
+}
+func evalExpressions(exps []ast.Expression, ctx *object.Context) []object.Object {
+	var result []object.Object
+	for _, e := range exps {
+		evaluated := Eval(e, ctx)
+		if isError(evaluated) {
+			return []object.Object{evaluated}
+		}
+		result = append(result, evaluated)
+	}
+	return result
+}
+
+func evalIdentifier(node *ast.Identifier, ctx *object.Context) object.Object {
 	val, ok := ctx.Get(node.Value)
 	if !ok {
 		return newError("identifier not found: " + node.Value)
@@ -187,10 +251,10 @@ func evalBangOperatorExpression(right object.Object) object.Object {
 
 	}
 }
-func evalStatements(stmts []ast.Statement,ctx *object.Context) object.Object {
+func evalStatements(stmts []ast.Statement, ctx *object.Context) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
-		result = Eval(statement,ctx)
+		result = Eval(statement, ctx)
 
 		if resultValue, ok := result.(*object.ReturnValue); ok {
 			return resultValue.Value

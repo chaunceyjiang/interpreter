@@ -4,7 +4,7 @@ import "Interpreter/token"
 
 type Identifier struct {
 	Token token.Token
-	Value string
+	Value string // 保存原始变量,
 }
 
 // 实现了 expressionNode() 因此 也实现了 Expression
