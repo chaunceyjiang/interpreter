@@ -23,16 +23,28 @@ func Eval(node ast.Node) object.Object {
 		//return evalStatements(node.Statements)
 	case *ast.PrefixExpression:
 		right := Eval(node.Right)
+		if isError(right) {
+			return right
+		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
 		left := Eval(node.Left)
+		if isError(left) {
+			return left
+		}
 		right := Eval(node.Right)
+		if isError(right) {
+			return right
+		}
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.IfExpression:
 		return evalIfExpression(node)
 	case *ast.ReturnStatement:
 		// 如果是返回语句，则继续计算返回表达式
 		val := Eval(node.ReturnValue)
+		if isError(val) {
+			return val
+		}
 		return &object.ReturnValue{Value: val}
 	}
 	return nil
@@ -74,6 +86,9 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 }
 func evalIfExpression(ie *ast.IfExpression) object.Object {
 	condition := Eval(ie.Condition) // 先计算if 的条件
+	if isError(condition) {
+		return condition
+	}
 	if isTruthy(condition) {
 		return Eval(ie.Consequence)
 	} else if ie.Alternative != nil { // 如果有else 节点 则 计算else
@@ -172,8 +187,14 @@ func evalBlockStatement(block *ast.BlockStatement) object.Object {
 	for _, statement := range block.Statements {
 		result = Eval(statement)
 		// 如果是返回值类型的对象，则返回具体类型，并且遇到return 语句则退出当前解析，不再计算剩下的表达式.
-		if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
-			return result
+		//if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
+		//	return result
+		//}
+		if result != nil {
+			rt := result.Type()
+			if rt == object.RETURN_VALUE_OBJ || rt == object.ERROR_OBJ {
+				return result
+			}
 		}
 	}
 	return result
@@ -195,4 +216,11 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 
 func newError(format string, a ...interface{}) *object.Error {
 	return &object.Error{Message: fmt.Sprintf(format, a...)}
+}
+
+func isError(obj object.Object) bool {
+	if obj != nil {
+		return object.ERROR_OBJ == obj.Type()
+	}
+	return false
 }
