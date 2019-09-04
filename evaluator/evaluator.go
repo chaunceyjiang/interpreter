@@ -3,6 +3,7 @@ package evaluator
 import (
 	"Interpreter/ast"
 	"Interpreter/object"
+	"fmt"
 )
 
 // 每一个AST 节点都实现了 ast.Node
@@ -39,11 +40,17 @@ func Eval(node ast.Node) object.Object {
 
 func evalProgram(program *ast.Program) object.Object {
 	var result object.Object
-	for _, statemnt := range program.Statements {
-		result = Eval(statemnt)
+	for _, statement := range program.Statements {
+		result = Eval(statement)
 		// 如果 遇到return 语句 则，结束剩下语句的解析
-		if returnValue, ok := result.(*object.ReturnValue); ok {
-			return returnValue.Value
+		//if returnValue, ok := result.(*object.ReturnValue); ok {
+		//	return returnValue.Value
+		//}
+		switch result := result.(type) {
+		case *object.ReturnValue:
+			return result.Value
+		case *object.Error:
+			return result
 		}
 	}
 	return result
@@ -58,8 +65,11 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
 		return nativeBoolToBooleanObject(left != right)
+	case left.Type() != right.Type(): // 二元操作符两边的类型不相等，不能计算
+		return newError("type mismatch: %s %s %s", left.Type(), operator, right.Type())
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		//return NULL
 	}
 }
 func evalIfExpression(ie *ast.IfExpression) object.Object {
@@ -109,7 +119,8 @@ func evalIntegerInfixExpression(operator string, left, right object.Object) obje
 	case "==":
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		//return NULL
 	}
 }
 func evalPrefixExpression(operator string, right object.Object) object.Object {
@@ -119,13 +130,15 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 	case "-":
 		return evalMinusPrefixOperatorExpression(right)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", operator, right, right.Type())
+		//return NULL
 	}
 }
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 	if right.Type() != object.INTEGER_OBJ {
-		return NULL
+		return newError("unknown operator: -%s", right.Type())
+		//return NULL
 	}
 	value := right.(*object.Integer).Value
 	return &object.Integer{Value: -value}
@@ -178,4 +191,8 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 		return TRUE
 	}
 	return FALSE
+}
+
+func newError(format string, a ...interface{}) *object.Error {
+	return &object.Error{Message: fmt.Sprintf(format, a...)}
 }
