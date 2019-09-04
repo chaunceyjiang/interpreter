@@ -16,6 +16,8 @@ func Eval(node ast.Node) object.Object {
 		return &object.Integer{Value: node.Value}
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
+	case *ast.BlockStatement:
+		return evalStatements(node.Statements)
 	case *ast.PrefixExpression:
 		right := Eval(node.Right)
 		return evalPrefixExpression(node.Operator, right)
@@ -23,6 +25,8 @@ func Eval(node ast.Node) object.Object {
 		left := Eval(node.Left)
 		right := Eval(node.Right)
 		return evalInfixExpression(node.Operator, left, right)
+	case *ast.IfExpression:
+		return evalIfExpression(node)
 	}
 	return nil
 }
@@ -31,8 +35,35 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 	switch {
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right)
+	case operator == "==":
+		// 这里直接进的了指标比较因为 BooleanObject 类型的
+		return nativeBoolToBooleanObject(left == right)
+	case operator == "!=":
+		return nativeBoolToBooleanObject(left != right)
 	default:
 		return NULL
+	}
+}
+func evalIfExpression(ie *ast.IfExpression) object.Object {
+	condition := Eval(ie.Condition) // 先计算if 的条件
+	if isTruthy(condition) {
+		return Eval(ie.Condition)
+	} else if ie.Alternative != nil { // 如果有else 节点 则 计算else
+		return Eval(ie.Alternative)
+	} else {
+		return NULL
+	}
+}
+func isTruthy(obj object.Object) bool {
+	switch obj {
+	case NULL:
+		return false
+	case TRUE:
+		return true
+	case FALSE:
+		return false
+	default:
+		return true // 其他类型都为真
 	}
 }
 func evalIntegerInfixExpression(operator string, left, right object.Object) object.Object {
