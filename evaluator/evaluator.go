@@ -7,53 +7,69 @@ import (
 )
 
 // 每一个AST 节点都实现了 ast.Node
-func Eval(node ast.Node) object.Object {
+func Eval(node ast.Node, ctx *object.Context) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
-		return evalProgram(node)
+		return evalProgram(node, ctx)
 		//return evalStatements(node.Statements)
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression)
+		return Eval(node.Expression, ctx)
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.BlockStatement:
-		return evalBlockStatement(node)
+		return evalBlockStatement(node, ctx)
 		//return evalStatements(node.Statements)
 	case *ast.PrefixExpression:
-		right := Eval(node.Right)
+		right := Eval(node.Right, ctx)
 		if isError(right) {
 			return right
 		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
-		left := Eval(node.Left)
+		left := Eval(node.Left, ctx)
 		if isError(left) {
 			return left
 		}
-		right := Eval(node.Right)
+		right := Eval(node.Right, ctx)
 		if isError(right) {
 			return right
 		}
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.IfExpression:
-		return evalIfExpression(node)
+		return evalIfExpression(node, ctx)
 	case *ast.ReturnStatement:
 		// 如果是返回语句，则继续计算返回表达式
-		val := Eval(node.ReturnValue)
+		val := Eval(node.ReturnValue, ctx)
 		if isError(val) {
 			return val
 		}
 		return &object.ReturnValue{Value: val}
+	case *ast.LetStatement:
+		val := Eval(node.Value, ctx) // LetStatement 语句表达式存在 Value 中
+		if isError(val) {
+			return val
+		}
+		ctx.Set(node.Name.Value, val)
+	case *ast.Identifier:
+		return evalIdentifer(node, ctx)
 	}
 	return nil
 }
 
-func evalProgram(program *ast.Program) object.Object {
+func evalIdentifer(node *ast.Identifier, ctx *object.Context) object.Object {
+	val, ok := ctx.Get(node.Value)
+	if !ok {
+		return newError("identifier not found: " + node.Value)
+	}
+	return val
+}
+
+func evalProgram(program *ast.Program, ctx *object.Context) object.Object {
 	var result object.Object
 	for _, statement := range program.Statements {
-		result = Eval(statement)
+		result = Eval(statement, ctx)
 		// 如果 遇到return 语句 则，结束剩下语句的解析
 		//if returnValue, ok := result.(*object.ReturnValue); ok {
 		//	return returnValue.Value
@@ -84,15 +100,15 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 		//return NULL
 	}
 }
-func evalIfExpression(ie *ast.IfExpression) object.Object {
-	condition := Eval(ie.Condition) // 先计算if 的条件
+func evalIfExpression(ie *ast.IfExpression, ctx *object.Context) object.Object {
+	condition := Eval(ie.Condition, ctx) // 先计算if 的条件
 	if isError(condition) {
 		return condition
 	}
 	if isTruthy(condition) {
-		return Eval(ie.Consequence)
+		return Eval(ie.Consequence, ctx)
 	} else if ie.Alternative != nil { // 如果有else 节点 则 计算else
-		return Eval(ie.Alternative)
+		return Eval(ie.Alternative, ctx)
 	} else {
 		return NULL
 	}
@@ -171,10 +187,10 @@ func evalBangOperatorExpression(right object.Object) object.Object {
 
 	}
 }
-func evalStatements(stmts []ast.Statement) object.Object {
+func evalStatements(stmts []ast.Statement,ctx *object.Context) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
-		result = Eval(statement)
+		result = Eval(statement,ctx)
 
 		if resultValue, ok := result.(*object.ReturnValue); ok {
 			return resultValue.Value
@@ -182,10 +198,10 @@ func evalStatements(stmts []ast.Statement) object.Object {
 	}
 	return result
 }
-func evalBlockStatement(block *ast.BlockStatement) object.Object {
+func evalBlockStatement(block *ast.BlockStatement, ctx *object.Context) object.Object {
 	var result object.Object
 	for _, statement := range block.Statements {
-		result = Eval(statement)
+		result = Eval(statement, ctx)
 		// 如果是返回值类型的对象，则返回具体类型，并且遇到return 语句则退出当前解析，不再计算剩下的表达式.
 		//if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
 		//	return result
