@@ -16,7 +16,9 @@ const (
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	ERROR_OBJ        = "ERROR"
 	FUNCTION_OBJ     = "FUNCTION"
+	STRING_ONJ       = "STRING"
 )
+
 // Object 代表着一个最基础的数据
 type Object interface {
 	Type() ObjectType
@@ -94,9 +96,20 @@ func (f *Function) Inspect() string {
 	}
 	out.WriteString("fn")
 	out.WriteString("(")
-	out.WriteString(strings.Join(params,", "))
+	out.WriteString(strings.Join(params, ", "))
 	out.WriteString("){\n")
 	out.WriteString(f.Body.String())
 	out.WriteString("}\n")
 	return out.String()
+}
+
+type String struct {
+	Value string
+}
+
+func (s *String) Type() ObjectType {
+	return STRING_ONJ
+}
+func (s String) Inspect() string {
+	return s.Value
 }

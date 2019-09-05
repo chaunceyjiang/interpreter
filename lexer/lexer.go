@@ -49,6 +49,9 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
 		tok = newToken(token.RBRACE, l.ch)
+	case '"':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
@@ -60,8 +63,15 @@ func (l *Lexer) NextToken() token.Token {
 			return tok
 		} else if isDigit(l.ch) {
 			// 如果当前位置是 数字，那么将后面的连续数值取处理
-			tok.Literal = l.readNumber()
-			tok.Type = token.INT
+			Literal,isFloat:= l.readNumber()
+			tok.Literal =Literal
+			if isFloat {
+				tok.Type = token.FlOAT
+			}else {
+				tok.Type = token.INT
+			}
+
+
 			return tok
 
 		} else {
@@ -70,6 +80,17 @@ func (l *Lexer) NextToken() token.Token {
 	}
 	l.readChar() // 继续处理下一个字符
 	return tok
+}
+func (l *Lexer) readString() string {
+	position := l.position + 1
+	for {
+		// 一直读取到 "  结束
+		l.readChar()
+		if l.ch == '"' {
+			break
+		}
+	}
+	return l.input[position:l.position]
 }
 
 // readChar 获取当前字符
@@ -98,7 +119,7 @@ func newToken(tokenType token.TokenType, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
 }
 
-func (l *Lexer)makeTwoCharToken(orgTok token.TokenType, ch byte) token.Token {
+func (l *Lexer) makeTwoCharToken(orgTok token.TokenType, ch byte) token.Token {
 	var tok token.TokenType
 	var literal string
 	var peekChar = l.peekChar()
@@ -128,12 +149,21 @@ func (l *Lexer) skipWhitespace() {
 	}
 }
 
-func (l *Lexer) readNumber() string {
+func (l *Lexer) readNumber() (string, bool) {
 	position := l.position
+	var isFloat = false
 	for isDigit(l.ch) {
 		l.readChar()
 	}
-	return l.input[position:l.position]
+	if l.ch == '.' {
+		l.readChar()
+		isFloat = true
+		for isDigit(l.ch) {
+			l.readChar()
+		}
+	}
+
+	return l.input[position:l.position],isFloat
 }
 
 // isLetter 判断是不是字母

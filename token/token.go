@@ -16,7 +16,8 @@ const (
 	// Identifiers + literals
 	IDENT = "IDENT" // add ,foo,bar ,x, y ....
 	INT   = "INT"   // 12342
-
+	STRING = "STRING"
+	FlOAT = "FLOAT"
 	//操作符Operators
 	ASSIGN   = "="
 	PLUS     = "+"

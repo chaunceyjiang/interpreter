@@ -4,6 +4,7 @@ import (
 	"Interpreter/ast"
 	"Interpreter/object"
 	"fmt"
+	"strings"
 )
 
 // 每一个AST 节点都实现了 ast.Node
@@ -14,6 +15,8 @@ func Eval(node ast.Node, ctx *object.Context) object.Object {
 		//return evalStatements(node.Statements)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, ctx)
+	case *ast.StringLiteral:
+		return &object.String{Value: node.Value}
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
 	case *ast.Boolean:
@@ -90,7 +93,7 @@ func callFunction(fn object.Object, args []object.Object) object.Object {
 	// function.Body 是一个代码块
 	evaluated := Eval(function.Body, fnCtx) // 计算函数体，然后用自身的上下文环境
 	// 将一个ReturnValue 对象，转换成一个 Integer 或者 Boolean object
-	return unwarpReturnValue(evaluated)
+	return unwrapReturnValue(evaluated)
 }
 
 func callFunctionCtx(fn *object.Function, args []object.Object) *object.Context {
@@ -103,7 +106,7 @@ func callFunctionCtx(fn *object.Function, args []object.Object) *object.Context 
 	}
 	return ctx
 }
-func unwarpReturnValue(obj object.Object) object.Object {
+func unwrapReturnValue(obj object.Object) object.Object {
 	if returnValue, ok := obj.(*object.ReturnValue); ok {
 		// 将ReturnValue 中的值取出来
 		return returnValue.Value
@@ -152,6 +155,8 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 	switch {
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right)
+	case left.Type() == object.STRING_ONJ && (right.Type() == object.STRING_ONJ || right.Type() == object.INTEGER_OBJ):
+		return evalStringInfixExpression(operator, left, right)
 	case operator == "==":
 		// 这里直接进的了指标比较因为 BooleanObject 类型的
 		return nativeBoolToBooleanObject(left == right)
@@ -163,6 +168,24 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 		//return NULL
 	}
+}
+func evalStringInfixExpression(operator string, left, right object.Object) object.Object {
+	switch operator {
+	case "+":
+		leftVal := left.(*object.String)
+		rightVal := right.(*object.String)
+		return &object.String{Value: leftVal.Value + rightVal.Value}
+	case "*":
+		leftVal := left.(*object.String)
+		rightVal, ok := right.(*object.Integer)
+		if !ok {
+			return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		}
+		return &object.String{Value: strings.Repeat(leftVal.Value, int(rightVal.Value))}
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+
 }
 func evalIfExpression(ie *ast.IfExpression, ctx *object.Context) object.Object {
 	condition := Eval(ie.Condition, ctx) // 先计算if 的条件

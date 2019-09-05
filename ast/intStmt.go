@@ -19,3 +19,17 @@ func (il *IntegerLiteral) TokenLiteral() string {
 }
 
 
+type FloatLiteral struct {
+	Token token.Token // 存储 类型
+	Value float64       // 具体的值
+}
+
+func (il *FloatLiteral) expressionNode() {
+
+}
+func (il *FloatLiteral) String() string {
+	return il.Token.Literal
+}
+func (il *FloatLiteral) TokenLiteral() string {
+	return il.Token.Literal
+}

@@ -35,7 +35,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
-
+	p.registerPrefix(token.STRING, p.parseStringLiteral)
+	p.registerPrefix(token.FlOAT, p.parseFloatLiteral)
 	p.infixParseFns = make(map[token.TokenType]infixParseFn) // 初始化 二元 解析函数map
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
@@ -187,6 +188,19 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 
 }
 
+func (p *Parser) parseFloatLiteral() ast.Expression {
+	ilt := &ast.FloatLiteral{Token: p.curToken}
+
+	value, err := strconv.ParseFloat(p.curToken.Literal,64)
+	if err != nil {
+		// 不能解析该值，然后将错误保存传递出去
+		p.errors = append(p.errors, errors.New(fmt.Sprintf("could not parse %q as float", p.curToken.Literal)))
+	}
+	ilt.Value = value
+	return ilt
+
+}
+
 // parseGroupedExpression 小括号的表达式
 func (p *Parser) parseGroupedExpression() ast.Expression {
 
@@ -233,6 +247,9 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 		return nil
 	}
 	return args
+}
+func (p *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 // parseIdentifier  实现了 prefixParseFns func() ast.Expression
