@@ -40,8 +40,8 @@ func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
 	program := p.ParserProgram()
-	ctx:=object.NewContext()
-	return Eval(program,ctx)
+	ctx := object.NewContext()
+	return Eval(program, ctx)
 }
 
 func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
@@ -150,10 +150,9 @@ return 1;
 	}
 }
 
-
 func TestErrorHandling(t *testing.T) {
 	tests := []struct {
-		input string
+		input           string
 		expectedMessage string
 	}{
 		{
@@ -211,10 +210,9 @@ return 1;
 	}
 }
 
-
 func TestLetStatements(t *testing.T) {
 	tests := []struct {
-		input string
+		input    string
 		expected int64
 	}{
 		{"let a = 5; a;", 5},

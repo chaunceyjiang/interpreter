@@ -74,7 +74,7 @@ func Eval(node ast.Node, ctx *object.Context) object.Object {
 			// 如果只有一个参数 且是一个错误，则返回该错误
 			return args[0]
 		}
-		callFunction(function, args)
+		return callFunction(function, args)
 	}
 	return nil
 }
