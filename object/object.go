@@ -17,6 +17,7 @@ const (
 	ERROR_OBJ        = "ERROR"
 	FUNCTION_OBJ     = "FUNCTION"
 	STRING_ONJ       = "STRING"
+	FLOAT_OBJ        = "FLOAT_OBJ"
 )
 
 // Object 代表着一个最基础的数据
@@ -112,4 +113,15 @@ func (s *String) Type() ObjectType {
 }
 func (s String) Inspect() string {
 	return s.Value
+}
+
+type Float struct {
+	Value float64
+}
+
+func (i *Float) Inspect() string {
+	return fmt.Sprintf("%f", i.Value)
+}
+func (i *Float) Type() ObjectType {
+	return FLOAT_OBJ
 }
