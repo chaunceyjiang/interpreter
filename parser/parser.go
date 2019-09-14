@@ -115,7 +115,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 
 	p.nextToken()
 	stmt.ReturnValue = p.parseExpression(LOWEST) // 解析return 后面的表达式
-	if !p.peekTokenIs(token.SEMICOLON) {
+	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 

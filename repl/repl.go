@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strings"
 )
 
 const PROMPT = ">>>"
@@ -31,7 +32,7 @@ func Start(in io.Reader, out io.Writer) {
 		}
 		evaluated := evaluator.Eval(program, ctx)
 		if evaluated != nil {
-			_, _ = io.WriteString(out, evaluated.Inspect())
+			_, _ = io.WriteString(out, strings.TrimRight(evaluated.Inspect(),"0."))
 			_, _ = io.WriteString(out, "\n")
 		}
 	}
