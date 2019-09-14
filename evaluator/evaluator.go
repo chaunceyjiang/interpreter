@@ -157,6 +157,8 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 	switch {
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left, right)
+	case FLOAT_INTEGER[left.Type()] && FLOAT_INTEGER[right.Type()]:
+		return evalFloatInfixExpression(operator, left, right)
 	case left.Type() == object.STRING_ONJ && (right.Type() == object.STRING_ONJ || right.Type() == object.INTEGER_OBJ):
 		return evalStringInfixExpression(operator, left, right)
 	case operator == "==":
@@ -243,6 +245,49 @@ func evalIntegerInfixExpression(operator string, left, right object.Object) obje
 		//return NULL
 	}
 }
+
+func evalFloatInfixExpression(operator string, left, right object.Object) object.Object {
+	var leftVal, rightVal float64
+	switch left.Type() {
+	case object.FLOAT_OBJ:
+		leftVal = left.(*object.Float).Value
+	case object.INTEGER_OBJ:
+		leftVal = float64(left.(*object.Integer).Value) // 这里有一个类型转化
+	}
+	switch right.Type() {
+	case object.FLOAT_OBJ:
+		rightVal = right.(*object.Float).Value
+	case object.INTEGER_OBJ:
+		rightVal = float64(right.(*object.Integer).Value)
+	}
+	//leftVal := left.(*object.Float).Value
+	//rightVal := right.(*object.Float).Value
+	switch operator {
+	case "+":
+		return &object.Float{Value: leftVal + rightVal}
+	case "-":
+		return &object.Float{Value: leftVal - rightVal}
+	case "*":
+		return &object.Float{Value: leftVal * rightVal}
+	case "/":
+		return &object.Float{Value: leftVal / rightVal}
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		//return NULL
+	}
+}
 func evalPrefixExpression(operator string, right object.Object) object.Object {
 	switch operator {
 	case "!":
@@ -256,12 +301,22 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 }
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
-	if right.Type() != object.INTEGER_OBJ {
+	switch right.Type() {
+	case object.INTEGER_OBJ:
+		value := right.(*object.Integer).Value
+		return &object.Integer{Value: -value}
+	case object.FLOAT_OBJ:
+		value := right.(*object.Float).Value
+		return &object.Float{Value: -value}
+	default:
 		return newError("unknown operator: -%s", right.Type())
-		//return NULL
 	}
-	value := right.(*object.Integer).Value
-	return &object.Integer{Value: -value}
+	//if right.Type() != object.INTEGER_OBJ {
+	//	return newError("unknown operator: -%s", right.Type())
+	//	//return NULL
+	//}
+	//value := right.(*object.Integer).Value
+	//return &object.Integer{Value: -value}
 }
 func evalBangOperatorExpression(right object.Object) object.Object {
 	switch right {
@@ -306,9 +361,10 @@ func evalBlockStatement(block *ast.BlockStatement, ctx *object.Context) object.O
 }
 
 var (
-	NULL  = &object.Null{}
-	TRUE  = &object.Boolean{Value: true}
-	FALSE = &object.Boolean{Value: false}
+	NULL          = &object.Null{}
+	TRUE          = &object.Boolean{Value: true}
+	FALSE         = &object.Boolean{Value: false}
+	FLOAT_INTEGER = map[object.ObjectType]bool{object.FLOAT_OBJ: true, object.INTEGER_OBJ: true, object.STRING_ONJ: false}
 )
 
 // nativeBoolToBooleanObject 减少内存申请

@@ -120,7 +120,7 @@ type Float struct {
 }
 
 func (i *Float) Inspect() string {
-	return fmt.Sprintf("%f", i.Value)
+	return fmt.Sprintf("%F", i.Value)
 }
 func (i *Float) Type() ObjectType {
 	return FLOAT_OBJ
